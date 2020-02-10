@@ -1,22 +1,29 @@
 // TODO: this is unfinished / not working
 
-var fs = require('fs')
-var glob = require('glob')
+(async function() {
 
-var exampleFiles = glob.sync('examples/*.example')
+  var fs = require('fs');
+  var glob = require('glob');
+  const util = require('util');
+  const readFileAsync = util.promisify(fs.readFile);
+  const writeFileAsync = util.promisify(fs.writeFile);
 
-exampleFiles.forEach(processFile)
+  var exampleFiles = glob.sync('examples/*.example');
 
-function processFile (f) {
-  var fileContents = fs.readFileSync(f, {encoding:'utf8'})
-  var lines = fileContents.split('\n')
+  exampleFiles.forEach(await processFile);
 
-  lines = lines.map(processLine)
+  async function processFile (f) {
+    var fileContents = await readFileAsync(f, {encoding:'utf8'});
+    var lines = fileContents.split('\n');
 
-  fs.writeFileSync(f, lines.join('\n'))
+    lines = lines.map(processLine);
+
+    await writeFileAsync(f, lines.join('\n'));
+  }
+
+  function processLine (line) {
+    line = line.replace('docs#', 'docs.html#');
+    return line;
 }
 
-function processLine (line) {
-  line = line.replace('docs#', 'docs.html#')
-  return line
-}
+}());

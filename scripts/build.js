@@ -2,45 +2,54 @@
 // This file creates a build in the dist/ folder
 // -----------------------------------------------------------------------------
 
-// libraries
-const fs = require('fs-plus')
-const csso = require('csso')
-const uglify = require('uglify-js')
+(async function() {
 
-const encoding = {encoding: 'utf8'}
+  // libraries
+  const fs = require('fs-plus');
+  const csso = require('csso');
+  const uglify = require('uglify-js');
+  const util = require('util');
+  const readFileAsync = util.promisify(fs.readFile);
+  const writeFileAsync = util.promisify(fs.writeFile);
+  const removeAsync = util.promisify(fs.remove);
+  const makeTreeAsync = util.promisify(fs.makeTree);
 
-const package = JSON.parse(fs.readFileSync('package.json', encoding))
-const version = package.version
-const year = new Date().getFullYear()
-const cssSrc = fs.readFileSync('lib/chessboard.css', encoding)
-                 .replace('@VERSION', version)
-const jsSrc = fs.readFileSync('lib/chessboard.js', encoding)
-                .replace('@VERSION', version)
-                .replace('RUN_ASSERTS = true', 'RUN_ASSERTS = false')
+  const encoding = {encoding: 'utf8'};
 
-// TODO: need to remove the RUN_ASSERTS calls from the non-minified file
+  const package = JSON.parse(await readFileAsync('package.json', encoding));
+  const version = package.version;
+  const year = new Date().getFullYear();
+  const cssSrc = (await readFileAsync('lib/chessboard.css', encoding))
+                  .replace('@VERSION', version);
+  const jsSrc = (await readFileAsync('lib/chessboard.js', encoding))
+                  .replace('@VERSION', version)
+                  .replace('RUN_ASSERTS = true', 'RUN_ASSERTS = false');
 
-const minifiedCSS = csso.minify(cssSrc).css
-const uglifyResult = uglify.minify(jsSrc)
-const minifiedJS = uglifyResult.code
+  // TODO: need to remove the RUN_ASSERTS calls from the non-minified file
 
-// quick sanity checks
-console.assert(!uglifyResult.error, 'error minifying JS!')
-console.assert(typeof minifiedCSS === 'string' && minifiedCSS !== '', 'error minifying CSS!')
+  const minifiedCSS = csso.minify(cssSrc).css;
+  const uglifyResult = uglify.minify(jsSrc);
+  const minifiedJS = uglifyResult.code;
 
-// add license to the top of minified files
-const minifiedJSWithBanner = banner() + minifiedJS
+  // quick sanity checks
+  console.assert(!uglifyResult.error, 'error minifying JS!');
+  console.assert(typeof minifiedCSS === 'string' && minifiedCSS !== '', 'error minifying CSS!');
 
-// create a fresh dist/ folder
-fs.removeSync('dist')
-fs.makeTreeSync('dist')
+  // add license to the top of minified files
+  const minifiedJSWithBanner = banner() + minifiedJS;
 
-// copy lib files to dist/
-fs.writeFileSync('dist/chessboard-' + version + '.css', cssSrc, encoding)
-fs.writeFileSync('dist/chessboard-' + version + '.min.css', minifiedCSS, encoding)
-fs.writeFileSync('dist/chessboard-' + version + '.js', jsSrc, encoding)
-fs.writeFileSync('dist/chessboard-' + version + '.min.js', minifiedJSWithBanner, encoding)
+  // create a fresh dist/ folder
+  await removeAsync('dist');
+  await makeTreeAsync('dist');
 
-function banner () {
-  return '/*! chessboard.js v' + version + ' | (c) ' + year + ' Chris Oakman | MIT License chessboardjs.com/license */\n'
-}
+  // copy lib files to dist/
+  await writeFileAsync('dist/chessboard-' + version + '.css', cssSrc, encoding);
+  await writeFileAsync('dist/chessboard-' + version + '.min.css', minifiedCSS, encoding);
+  await writeFileAsync('dist/chessboard-' + version + '.js', jsSrc, encoding);
+  await writeFileAsync('dist/chessboard-' + version + '.min.js', minifiedJSWithBanner, encoding);
+
+  function banner () {
+    return '/*! chessboard.js v' + version + ' | (c) ' + year + ' Chris Oakman | MIT License chessboardjs.com/license */\n'
+  }
+
+}());
